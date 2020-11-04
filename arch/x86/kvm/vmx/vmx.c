@@ -71,7 +71,7 @@ MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
 
 extern atomic64_t exit_totals;
-extern atomic64_exit_time;
+extern atomic64_t exit_time;
 
 #ifdef MODULE
 static const struct x86_cpu_id vmx_cpu_id[] = {
@@ -5997,7 +5997,8 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
 	u32 exit_reason = vmx->exit_reason;
 	u32 vectoring_info = vmx->idt_vectoring_info;
 	
-	u64 start_time=rdtsc();
+	//Add starting time and total exits
+	u64 start_time = rdtsc();
 	atomic64_inc(&exit_totals);
 
 	/*
@@ -6119,24 +6120,25 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
 		atomic64_add(rdtsc() - start_time, &exit_time);
 		goto unexpected_vmexit;
 #ifdef CONFIG_RETPOLINE
-	if (exit_reason == EXIT_REASON_MSR_WRITE)
+	if (exit_reason == EXIT_REASON_MSR_WRITE){
 		atomic64_add(rdtsc() - start_time, &exit_time);
 		return kvm_emulate_wrmsr(vcpu);
-	else if (exit_reason == EXIT_REASON_PREEMPTION_TIMER)
+	} else if (exit_reason == EXIT_REASON_PREEMPTION_TIMER){
 		atomic64_add(rdtsc() - start_time, &exit_time);
 		return handle_preemption_timer(vcpu);
-	else if (exit_reason == EXIT_REASON_INTERRUPT_WINDOW)
+	} else if (exit_reason == EXIT_REASON_INTERRUPT_WINDOW){
 		atomic64_add(rdtsc() - start_time, &exit_time);
 		return handle_interrupt_window(vcpu);
-	else if (exit_reason == EXIT_REASON_EXTERNAL_INTERRUPT)
+	} else if (exit_reason == EXIT_REASON_EXTERNAL_INTERRUPT){
 		atomic64_add(rdtsc() - start_time, &exit_time);
 		return handle_external_interrupt(vcpu);
-	else if (exit_reason == EXIT_REASON_HLT)
+	} else if (exit_reason == EXIT_REASON_HLT){
 		atomic64_add(rdtsc() - start_time, &exit_time);
 		return kvm_emulate_halt(vcpu);
-	else if (exit_reason == EXIT_REASON_EPT_MISCONFIG)
+	} else if (exit_reason == EXIT_REASON_EPT_MISCONFIG){
 		atomic64_add(rdtsc() - start_time, &exit_time);
 		return handle_ept_misconfig(vcpu);
+	}
 #endif
 
 	exit_reason = array_index_nospec(exit_reason,

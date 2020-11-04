@@ -15,6 +15,7 @@
 #include <linux/uaccess.h>
 #include <linux/sched/stat.h>
 
+#include <asm/atomic.h>
 #include <asm/processor.h>
 #include <asm/user.h>
 #include <asm/fpu/xstate.h>
@@ -30,6 +31,11 @@
  */
 u32 kvm_cpu_caps[NCAPINTS] __read_mostly;
 EXPORT_SYMBOL_GPL(kvm_cpu_caps);
+
+atomic64_t exit_totals = ATOMIC64_INIT(0);
+atomic64_t exit_time = ATOMIC64_INIT(0);
+EXPORT_SYMBOL(exit_totals);
+EXPORT_SYMBOL(exit_time);
 
 static u32 xstate_required_size(u64 xstate_bv, bool compacted)
 {
@@ -1081,7 +1087,28 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 
 	eax = kvm_rax_read(vcpu);
 	ecx = kvm_rcx_read(vcpu);
-	kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, false);
+	
+	if(eax == 0x4FFFFFFF)
+	{
+		//Can modify Registers
+		kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);
+
+		//For number of exits
+		printk(KERN_INFO "Update eax exits=%llu\n", atomic64_read(&exit_totals));
+		eax = atomic64_read(&exit_totals);
+		printk(KERN_INFO "Total exits= %u\n", eax);
+
+		//For total time in register
+		printk(KERN_INFO "High bit exit time for ebx=%llu\n", atomic64_read(&exit_time));
+		ebx = (atomic64_read(&exit_time) >> 32);
+		printk(KERN_INFO "Ebx Total exits=%u\n", ebx);
+
+		ecx = (atomic64_read(&exit_time) & 0xFFFFFFF);
+		printk(KERN_INFO "Ecx Total exits=%u\n", ecx);
+	}else{
+		kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, false);
+	}
+	
 	kvm_rax_write(vcpu, eax);
 	kvm_rbx_write(vcpu, ebx);
 	kvm_rcx_write(vcpu, ecx);
