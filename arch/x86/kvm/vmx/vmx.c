@@ -6112,12 +6112,12 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
 		}
 	}
 
-	if (exit_fastpath != EXIT_FASTPATH_NONE)
+	if (exit_fastpath != EXIT_FASTPATH_NONE){
 		atomic64_add(rdtsc() - start_time, &exit_time);
 		return 1;
-
+	}
+	
 	if (exit_reason >= kvm_vmx_max_exit_handlers)
-		atomic64_add(rdtsc() - start_time, &exit_time);
 		goto unexpected_vmexit;
 #ifdef CONFIG_RETPOLINE
 	if (exit_reason == EXIT_REASON_MSR_WRITE){
